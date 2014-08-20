@@ -21,5 +21,5 @@ $plugin->maturity = MATURITY_RC;
 $plugin->component = 'assignfeedback_mahara';
 
 $plugin->dependencies = array(
-    'local_mahara' => ANY_VERSION
+    'assignsubmission_mahara' => 2014082000
 );

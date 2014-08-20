@@ -7,7 +7,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      * @return string
      */
     public function get_name() {
-        return get_string('pluginfile', 'assignsubmission_mahara');
+        return get_string('pluginname', 'assignfeedback_mahara');
     }
 
     /**
@@ -25,23 +25,12 @@ class assign_feedback_mahara extends assign_feedback_plugin {
     }
 
     /**
-     * @see parent
+     * Callback function that is called when the standard grading form is used.
+     * @see assign_plugin::save()
      */
-    public function save(stdClass $grade, stdClass $data) {
-        if ($release = $this->prepare_release($grade)) {
-            $plugin = $this;
-            return $release
-            ->map(
-                    function($tuple) use ($plugin, $data) {
-                list($mahara, $event, $portfolio) = $tuple;
-
-                $outcomes = $plugin->process_outcomes_from_form($event->grade, $data);
-                return $plugin->complete_release($mahara, $event, $portfolio, $outcomes);
-            })
-            ->getOrElse(true);
-        }
-
-        return true;
+    public function save(stdClass $grade, stdClass $formdata = null) {
+        $outcomes = $this->process_outcomes_from_form($grade, $formdata);
+        return $this->handle_grade_save($grade, $outcomes);
     }
 
     /**
@@ -51,48 +40,63 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      * @return Model_Option|null
      */
     private function prepare_release($grade) {
-        $event = new stdClass;
+        global $DB;
+
+        $event = new stdClass();
         $event->assignment = $this->assignment;
         $event->grade = $grade;
-        $event->submission = $this->get_submission_for_grade($grade);
+        $event->submission = $DB->get_record(
+            'assign_submission',
+            array(
+                'assignment' => $this->assignment->get_instance()->id,
+                'userid' => $grade->userid,
+            )
+        );
 
-        $mahara = $event->assignment->get_submission_plugin_by_type('mahara');
+        $maharasubmissionplugin = $event->assignment->get_submission_plugin_by_type('mahara');
 
-        if ($submitted = $mahara->get_portfolio_record($event->submission) ) {
-            return $mahara
-            ->get_service()
-            ->get_local_portfolio($submitted->portfolio)
-            ->map(function($portfolio) use ($mahara, $event) {
-                return array($mahara, $event, $portfolio);
-            });
+        $maharasubmission = $DB->get_record(
+            'assignsubmission_mahara',
+            array(
+                'assignment' => $this->assignment->get_instance()->id,
+                'submission' => $event->submission->id,
+            )
+        );
+        if ($maharasubmission) {
+            $event->maharasubmission = $maharasubmission;
+            return array($maharasubmissionplugin, $event, $maharasubmission);
         }
 
         return null;
     }
 
     /**
-     * Completes the commone release scenario
+     * Completes the common release scenario
      *
-     * @param mixed $mahara
-     * @param stdClass $event
-     * @param stdClass $portfolio
+     * @param assign_submission_mahara $maharasubmissionplugin
+     * @param stdClass $event Object prepared in prepare_release() with data about submission
+     * @param stdClass $maharasubmission Record from assignsubmission_mahara table
      * @param array $outcomes
      * @return boolean
      */
-    private function complete_release($mahara, $event, $portfolio, $outcomes) {
-        return $mahara
-        ->get_service()
-        ->request_release_submitted_view(
-                $event->grade->grader,
-                $portfolio->page,
-                $outcomes
-        )
-        ->withRight()
-        ->each(
-                function() use ($event) {
-            events_trigger('assign_mahara_grade_submitted', $event);
-        })
-        ->isRight();
+    private function complete_release($maharasubmissionplugin, $event, $maharasubmission, $outcomes) {
+
+        if ($maharasubmission->viewstatus == assign_submission_mahara::STATUS_SUBMITTED) {
+            // Returns no result
+            $maharasubmissionplugin->mnet_release_submited_view(
+                $maharasubmission->viewid,
+                $outcomes,
+                $maharasubmission->iscollection
+            );
+
+            if ($maharasubmissionplugin->get_error()) {
+                return false;
+            } else {
+                $maharasubmissionplugin->set_mahara_submission_status($maharasubmission->submission, assign_submission_mahara::STATUS_RELEASED);
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -103,22 +107,12 @@ class assign_feedback_mahara extends assign_feedback_plugin {
     }
 
     /**
-     * @see parent
+     * Callback method called when the quickgrading form is used
+     * @see assign_feedback_plugin::save_quickgrading_changes()
      */
     public function save_quickgrading_changes($userid, $grade) {
-        if ($release = $this->prepare_release($grade)) {
-            $plugin = $this;
-            return $release
-            ->map(
-                    function($tuple) use ($grade, $plugin) {
-                list($mahara, $event, $portfolio) = $tuple;
-
-                $outcomes = $plugin->process_outcomes_from_quickgrading($grade);
-                return $plugin->complete_release($mahara, $event, $portfolio, $outcomes);
-            })
-            ->getOrElse(true);
-        }
-        return true;
+        $outcomes = $this->process_outcomes_from_quickgrading($grade);
+        return $this->handle_grade_save($grade, $outcomes);
     }
 
     /**
@@ -191,10 +185,10 @@ class assign_feedback_mahara extends assign_feedback_plugin {
                 $scale = make_grades_menu(-$outcome->scaleid);
 
                 if (
-                        !isset($formdata->{$name}[$grade->userid]) ||
-                        $oldoutcome == $formdata->{$name}[$grade->userid] ||
-                        !isset($scale[$formdata->{$name}[$grade->userid]])
-                        ) {
+                        !isset($formdata->{$name}[$grade->userid])
+                        || $oldoutcome == $formdata->{$name}[$grade->userid]
+                        || !isset($scale[$formdata->{$name}[$grade->userid]])
+                ) {
                     continue;
                 }
 
@@ -203,10 +197,10 @@ class assign_feedback_mahara extends assign_feedback_plugin {
                 }
 
                 $viewoutcomes[] = array(
-                        'name' => $outcome->name,
-                        'scale' => $scale,
-                        'grade' => $formdata->{$name}[$grade->userid],
-                        );
+                    'name' => $outcome->name,
+                    'scale' => $scale,
+                    'grade' => $formdata->{$name}[$grade->userid],
+                );
             }
         }
 
@@ -214,17 +208,20 @@ class assign_feedback_mahara extends assign_feedback_plugin {
     }
 
     /**
-     * Gets the submission record for the grading event we're currently looking at
+     * Method that responds to a grade save event. It checks whether there is a Moodle page
+     * that needs to be released, and if so, releases it.
      *
      * @param stdClass $grade
-     * @return stdClass $submission
+     * @param unknown_type $outcomefunction
+     * @param unknown_type $data
      */
-    private function get_submission_for_grade($grade) {
-        global $DB;
+    private function handle_grade_save(stdClass $grade, $outcomes) {
+        $release = $this->prepare_release($grade);
+        if ($release) {
+            list($mahara, $event, $portfolio) = $release;
+            return $this->complete_release($mahara, $event, $portfolio, $outcomes);
+        }
 
-        return $DB->get_record('assign_submission', array(
-                'assignment' => $this->assignment->get_instance()->id,
-                'userid' => $grade->userid,
-        ));
+        return true;
     }
 }

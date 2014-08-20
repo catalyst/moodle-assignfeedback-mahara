@@ -9,7 +9,7 @@ $string['typemahara'] = 'Mahara feedback';
 $string['default'] = 'Enabled by default';
 $string['default_help'] = 'If set, this feedback method will be enabled by default for all new assignments.';
 $string['enabled'] = 'Mahara feedback';
-$string['enabled_help'] = 'If enabled, teachers can submit grades to Mahara';
+$string['enabled_help'] = 'If enabled, submitted Mahara pages and collections will be unlocked after grading.';
 
 // Error
 $string['err_save_setting'] = 'Failed to save Mahara site setting. Please try again.';
