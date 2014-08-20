@@ -27,18 +27,6 @@ class assign_feedback_mahara extends assign_feedback_plugin {
     /**
      * @see parent
      */
-    public function get_settings(MoodleQuickForm $form) {
-        $plugin = $this->assignment->get_submission_plugin_by_type('mahara');
-        if (empty($plugin)) {
-            $form->hardFreeze('assignfeedback_mahara_enabled');
-        } else {
-            $form->disabledIf('assignfeedback_mahara_enabled', 'assignsubmission_mahara_enabled');
-        }
-    }
-
-    /**
-     * @see parent
-     */
     public function save(stdClass $grade, stdClass $data) {
         if ($release = $this->prepare_release($grade)) {
             $plugin = $this;
@@ -91,7 +79,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      * @param array $outcomes
      * @return boolean
      */
-    public function complete_release($mahara, $event, $portfolio, $outcomes) {
+    private function complete_release($mahara, $event, $portfolio, $outcomes) {
         return $mahara
         ->get_service()
         ->request_release_submitted_view(
@@ -139,7 +127,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      * @param $grade
      * @return grading_info
      */
-    public function get_user_grade_info($grade) {
+    private function get_user_grade_info($grade) {
         return $grading_info = grade_get_grades(
                 $this->assignment->get_course()->id,
                 'mod',
@@ -155,7 +143,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      * @param $grade
      * @return array
      */
-    public function process_outcomes_from_quickgrading($grade) {
+    private function process_outcomes_from_quickgrading($grade) {
         $grading_info = $this->get_user_grade_info($grade);
 
         $viewoutcomes = array();
@@ -192,7 +180,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      * @param stdClass $formdata
      * @return array
      */
-    public function process_outcomes_from_form($grade, $formdata) {
+    private function process_outcomes_from_form($grade, $formdata) {
         $grading_info = $this->get_user_grade_info($grade);
         $viewoutcomes = array();
 
@@ -226,12 +214,12 @@ class assign_feedback_mahara extends assign_feedback_plugin {
     }
 
     /**
-     * Gets the submission for the grade
+     * Gets the submission record for the grading event we're currently looking at
      *
      * @param stdClass $grade
      * @return stdClass $submission
      */
-    public function get_submission_for_grade($grade) {
+    private function get_submission_for_grade($grade) {
         global $DB;
 
         return $DB->get_record('assign_submission', array(
