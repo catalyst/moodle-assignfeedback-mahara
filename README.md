@@ -1,14 +1,15 @@
 # Mahara Assignment Feedback Plugin
 
-This feedback plugin offers a purely supporting role to its [submission sibling][1].
+This feedback plugin offers a purely supporting role to its [submission sibling][1]. If a teacher enables this plugin on a Moodle assignment that is using the Mahara assignment submission plugin, then any submitted Mahara pages & collections will be unlocked on the Mahara side once their Moodle submission is graded.
+
+(Without this plugin, Mahara pages that are submitted through the Moodle submission plugin, remain permanently locked in Mahara, to provide a grading audit trail.)
 
 ## Requirements
 
-- Moodle 2.3+
+- Moodle 2.6+
 - PHP 5.4+
-- [Fully integrated Moodle -> Mahara instances][3]
-- [Updated Mahara local plugin][2]
-- [Mahara assignment submission plugin][1]
+- [Fully integrated Moodle -> Mahara instances][2]
+- [Catalyst IT's latest Mahara assignment submission plugin][1]
 
 ## Installation
 
@@ -24,9 +25,15 @@ plugin in one of two ways:
 
 The remainder of the installation can be achieved within Moodle by clicking on the _Notifications_ link.
 
-[1]: https://github.com/fellowapeman/moodle-assign_mahara
-[2]: https://github.com/fellowapeman/moodle-local_mahara
-[3]: http://manual.mahara.org/en/1.5/mahoodle/mahoodle.html
+## Upgrading
+
+If you are upgrading from an earlier version of this plugin, you will need to do the following:
+
+1. Make sure your Mahara assignment submission plugin is updated to the latest version from [Catalyst IT's github repository][1].
+
+2. Run the Installation steps listed above.
+
+3. Uninstall the [Mahara local plugin][3] if it is present.
 
 ## License
 
@@ -59,3 +66,7 @@ The upgrade to Moodle 2.0 and 2.1 was written by Aaron Wells at Catalyst IT, and
 
 - NetSpot
 - Pukunui Technology
+
+[1]: https://github.com/catalyst/assignsubmission_mahara/tree/moodle26-merged
+[2]: http://manual.mahara.org/en/1.9/mahoodle/mahoodle.html
+[3]: https://github.com/fellowapeman/moodle-local_mahara
