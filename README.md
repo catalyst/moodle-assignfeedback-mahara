@@ -7,7 +7,7 @@ This feedback plugin offers a purely supporting role to its [submission sibling]
 ## Requirements
 
 - Moodle 2.6+
-- PHP 5.4+
+- PHP 5.3+
 - [Fully integrated Moodle -> Mahara instances][2]
 - [Catalyst IT's latest Mahara assignment submission plugin][1]
 
