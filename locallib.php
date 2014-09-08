@@ -34,55 +34,46 @@ class assign_feedback_mahara extends assign_feedback_plugin {
     }
 
     /**
-     * Prepares the release scenario
+     * Callback method called when the quickgrading form is used
+     * @see assign_feedback_plugin::save_quickgrading_changes()
+     */
+    public function save_quickgrading_changes($userid, $grade) {
+        $outcomes = $this->process_outcomes_from_quickgrading($grade);
+        return $this->handle_grade_save($grade, $outcomes);
+    }
+
+    /**
+     * Method that responds to a grade save event. It checks whether there is a Mahara page
+     * that needs to be released, and if so, releases it.
      *
      * @param stdClass $grade
-     * @return Model_Option|null
+     * @param unknown_type $outcomefunction
+     * @param unknown_type $data
+     * @return boolean If there's an error, sets $this->set_error() and returns false. If there's no error, returns true.
      */
-    private function prepare_release($grade) {
+    private function handle_grade_save(stdClass $grade, $outcomes) {
         global $DB;
 
-        $event = new stdClass();
-        $event->assignment = $this->assignment;
-        $event->grade = $grade;
-        $event->submission = $DB->get_record(
-            'assign_submission',
-            array(
-                'assignment' => $this->assignment->get_instance()->id,
-                'userid' => $grade->userid,
-            )
-        );
+        $submission = $this->assignment->get_user_submission($grade->userid, false);
 
-        $maharasubmissionplugin = $event->assignment->get_submission_plugin_by_type('mahara');
+        if (!$submission) {
+            return true;
+        }
 
         $maharasubmission = $DB->get_record(
             'assignsubmission_mahara',
             array(
                 'assignment' => $this->assignment->get_instance()->id,
-                'submission' => $event->submission->id,
+                'submission' => $submission->id,
             )
         );
-        if ($maharasubmission) {
-            $event->maharasubmission = $maharasubmission;
-            return array($maharasubmissionplugin, $event, $maharasubmission);
-        }
 
-        return null;
-    }
+        // If there is a locked Mahara component in this submission, Mahara-release it.
+        if ($maharasubmission && $maharasubmission->viewstatus == assign_submission_mahara::STATUS_SUBMITTED) {
 
-    /**
-     * Completes the common release scenario
-     *
-     * @param assign_submission_mahara $maharasubmissionplugin
-     * @param stdClass $event Object prepared in prepare_release() with data about submission
-     * @param stdClass $maharasubmission Record from assignsubmission_mahara table
-     * @param array $outcomes
-     * @return boolean
-     */
-    private function complete_release($maharasubmissionplugin, $event, $maharasubmission, $outcomes) {
+            /* @var $maharasubmissionplugin assign_submission_mahara */
+            $maharasubmissionplugin = $this->assignment->get_submission_plugin_by_type('mahara');
 
-        if ($maharasubmission->viewstatus == assign_submission_mahara::STATUS_SUBMITTED) {
-            // Returns no result
             $maharasubmissionplugin->mnet_release_submited_view(
                 $maharasubmission->viewid,
                 $outcomes,
@@ -90,6 +81,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
             );
 
             if ($maharasubmissionplugin->get_error()) {
+                $this->set_error($maharasubmissionplugin->get_error());
                 return false;
             } else {
                 $maharasubmissionplugin->set_mahara_submission_status($maharasubmission->submission, assign_submission_mahara::STATUS_RELEASED);
@@ -104,15 +96,6 @@ class assign_feedback_mahara extends assign_feedback_plugin {
      */
     public function supports_quickgrading() {
         return true;
-    }
-
-    /**
-     * Callback method called when the quickgrading form is used
-     * @see assign_feedback_plugin::save_quickgrading_changes()
-     */
-    public function save_quickgrading_changes($userid, $grade) {
-        $outcomes = $this->process_outcomes_from_quickgrading($grade);
-        return $this->handle_grade_save($grade, $outcomes);
     }
 
     /**
@@ -205,23 +188,5 @@ class assign_feedback_mahara extends assign_feedback_plugin {
         }
 
         return $viewoutcomes;
-    }
-
-    /**
-     * Method that responds to a grade save event. It checks whether there is a Moodle page
-     * that needs to be released, and if so, releases it.
-     *
-     * @param stdClass $grade
-     * @param unknown_type $outcomefunction
-     * @param unknown_type $data
-     */
-    private function handle_grade_save(stdClass $grade, $outcomes) {
-        $release = $this->prepare_release($grade);
-        if ($release) {
-            list($mahara, $event, $portfolio) = $release;
-            return $this->complete_release($mahara, $event, $portfolio, $outcomes);
-        }
-
-        return true;
     }
 }
