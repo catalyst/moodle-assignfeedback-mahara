@@ -74,7 +74,7 @@ class assign_feedback_mahara extends assign_feedback_plugin {
             /* @var $maharasubmissionplugin assign_submission_mahara */
             $maharasubmissionplugin = $this->assignment->get_submission_plugin_by_type('mahara');
 
-            $maharasubmissionplugin->mnet_release_submited_view(
+            $maharasubmissionplugin->mnet_release_submitted_view(
                 $maharasubmission->viewid,
                 $outcomes,
                 $maharasubmission->iscollection
